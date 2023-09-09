@@ -53,7 +53,6 @@ class VGG(nn.Module):
         x = self.classifier(x)
         return x
 
-
 def train(
         model: nn.Module,
         dataloader: DataLoader,
@@ -89,12 +88,9 @@ def train(
             loss.backward()  # Backward propagation
             optimizer.step()  # Update optimizer
 
-
-
         if callbacks is not None:
             for callback in callbacks:
                 callback()
-
 
 @torch.inference_mode()
 def evaluate(
@@ -128,11 +124,9 @@ def evaluate(
 
     return (num_correct / num_samples * 100).item()
 
-
 def get_model_flops(model, inputs):
     num_macs = profile_macs(model, inputs)
     return num_macs
-
 
 def get_model_size(model: nn.Module, data_width=32):
     """
@@ -156,6 +150,9 @@ device_check()
 
 if __name__ == "__main__":
 
+    train_flag = False  # evaluate
+    # train_flag = True # train
+
     model_name = 'vgg'
     model = VGG().cuda()
     checkpoint_path = f"./checkpoints/best_{model_name}.pth.tar"
@@ -163,6 +160,10 @@ if __name__ == "__main__":
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
         print(f"=> loading checkpoint '{checkpoint_path}'")
         model.load_state_dict(checkpoint)
+    else:
+        train_flag = True
+
+    recover_model = lambda: model.load_state_dict(checkpoint)
 
     transforms = {
         "train": Compose([
@@ -195,8 +196,7 @@ if __name__ == "__main__":
     print(f"fp32 model has accuracy={fp32_model_accuracy:.2f}%")
     print(f"fp32 model has size={fp32_model_size / MiB:.2f} MiB")
 
-    train_flag = False
-    if train_flag :
+    if train_flag:
         use_amp = True
         scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         while epoch > 0:
             train(model, dataloader['train'], criterion, optimizer, scheduler, scaler, use_amp)
             model_acc = evaluate(model, dataloader['test'])
-            scheduler.step() # Update LR scheduler
+            scheduler.step()  # Update LR scheduler
 
             torch.save(model.state_dict(), f"./checkpoints/last_{model_name}.pth.tar")
 
